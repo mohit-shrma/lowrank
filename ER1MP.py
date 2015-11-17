@@ -1,5 +1,6 @@
 import numpy as np 
 import scipy as sp
+import scipy.sparse as sparse
 import scipy.sparse.linalg as splinalg
 import sys
 from sparsesvd import sparsesvd
@@ -55,6 +56,21 @@ def ER1MP(Y, rank):
     opMat += theta[k]*np.outer(us[k],vs[k])
 
   return opMat
+
+
+def genLowRankMat(nrows, ncols, rank):
+  A = np.random.rand(nrows, ncols)
+  U,s,Vh = np.linalg.svd(A)
+
+  A_loRank = np.dot(U[:,0:rank], np.dot(np.diag(s[:rank]), Vh[0:rank, :]))
+  return A_loRank
+
+
+def readTriplet0IndMat(fileName):
+  ipMat = np.loadtxt(fileName)
+  rows, cols, data = ipMat.T
+  spMat = sparse.coo_matrix((data, (rows, cols)))
+  return spMat
 
 
 def main():
