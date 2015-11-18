@@ -3,7 +3,15 @@ import scipy as sp
 import scipy.sparse as sparse
 import scipy.sparse.linalg as splinalg
 import sys
-from sparsesvd import sparsesvd
+
+
+def rmse(X, Y, nnz):
+  nrows, ncols = X.shape
+  nElems = nrows*ncols
+  x = X.reshape(nElems, 1)
+  y = Y.reshape(nElems, 1)
+  rmse = np.sqrt(np.sum(np.square(x-y))/nnz)
+  return rmse
 
 
 def getProjMat(mat, rowInds, colInds):
@@ -42,8 +50,8 @@ def ER1MP(Y, rank):
     A = np.hstack((a1, a2))
     sol = np.linalg.lstsq(A, b)
     alphas = sol[0]
-    alpha1 = alphas[0]
-    alpha2 = alphas[1]
+    alpha1 = alphas[0,0]
+    alpha2 = alphas[1,0]
 
     X = alpha1*X + alpha2*M_k_proj
     theta[k] = alpha2
