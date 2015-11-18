@@ -5,12 +5,13 @@ import scipy.sparse.linalg as splinalg
 import sys
 
 
-def rmse(X, Y, nnz):
-  nrows, ncols = X.shape
-  nElems = nrows*ncols
-  x = X.reshape(nElems, 1)
-  y = Y.reshape(nElems, 1)
-  rmse = np.sqrt(np.sum(np.square(x-y))/nnz)
+def rmse(X, Y, rowInds, colInds):
+  x = X[rowInds, colInds]
+  y = Y[rowInds, colInds]
+  nElems = len(rowInds)
+  x = x.reshape(nElems, 1)
+  y = y.reshape(nElems, 1)
+  rmse = np.sqrt(np.sum(np.square(x-y))/nElems)
   return rmse
 
 
@@ -22,11 +23,48 @@ def getProjMat(mat, rowInds, colInds):
   return projMat
 
 
-def ER1MP(Y, rank):
+def SVP(Y, rank, delta, maxIter, trainRowInds, trainColInds, testRowInds,
+    testColInds):
+  
+  nrows, ncols = Y.shape
+  X_star       = getProjMat(Y, trainRowInds, trainColInds)
+  nElems       = len(trainRowInds)
+  
+  print 'Size of indices: ', nElems
+
+  X            = np.zeros((nrows, ncols))
+  p            = (nElems*1.0)/(nrows*ncols)
+ 
+  rate = 1.0/((1.0 + delta)*p)
+  print 'p: ', p, 'delta: ', delta, 'Rate: ', rate
+
+  for t in range(maxIter):
+    X_proj = getProjMat(X, trainRowInds, trainColInds)
+    diffX = X -  ((X_proj - X_star)*(rate))
+    
+    #perform orthogonal projection of above
+    U, s, Vh = splinalg.svds(diffX, rank)
+    X = np.dot(U, np.dot(np.diag(s), Vh))
+
+    trainErr = rmse(X, Y, trainRowInds, trainColInds)
+    
+    testErr = -1
+    if len(testRowInds) > 0:
+      testErr  = rmse(X, Y, testRowInds, testColInds)
+    
+    if t % 10 == 0:
+      print 't: ', t, 'Train Error: ', trainErr, 'Test Err: ', testErr
+    
+    if trainErr < 0.001:
+      break
+
+  return X
+
+
+def ER1MP(Y, rank, row_inds, col_inds):
 
   nrows, ncols = Y.shape
   X = np.zeros((nrows, ncols))
-  row_inds, col_inds = np.nonzero(Y)
   
   #get non-zero indices projection of Y
   Y_proj = getProjMat(Y, row_inds, col_inds)
@@ -62,7 +100,7 @@ def ER1MP(Y, rank):
   opMat = np.zeros((nrows, ncols))
   for k in range(rank):
     opMat += theta[k]*np.outer(us[k],vs[k])
-
+  
   return opMat
 
 
